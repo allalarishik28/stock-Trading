@@ -1,8 +1,5 @@
 import React, { useState } from "react";
 
-import '@fortawesome/fontawesome-free/css/all.min.css';
-
-
 import { Link } from "react-router-dom";
 
 const Menu = () => {
@@ -22,11 +19,7 @@ const Menu = () => {
 
   return (
     <div className="menu-container">
-{/* <i className="fa fa-usd" aria-hidden="true"></i> */}
-<i class="fa fa-line-chart" aria-hidden="true"></i>
-
-
-
+      <img src="logo.png" style={{ width: "50px" }} />
       <div className="menus">
         <ul>
           <li>

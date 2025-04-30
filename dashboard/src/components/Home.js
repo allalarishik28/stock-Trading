@@ -9,7 +9,7 @@ const Home = () => {
     {/* <menu /> */}
 
       <TopBar />
-      <Dashboard />
+      <Dashboard />7
     </>
   );
 };

@@ -7,20 +7,34 @@ import Education from './Education';
 import OpenAccount from '../OpenAccount';
 import Navbar from '../Navbar';
 import Footer from '../Footer';
+import Dashboard from '../../components/Dashboard';
 
 
 
-function HomePage() {
+function HomePage({isLoggedIn, setIsLoggedIn}) {
     return (
         <div>
-            {/* <Navbar /> */}
-            <Hero />
-            <Awards />
-            <Stats />
-            <Pricing />
-            <Education />
-            <OpenAccount />
-            {/* <Footer /> */}
+            {!isLoggedIn ? (
+                <div>
+                    <Hero />
+                    <Awards />
+                    <Stats />
+                    <Pricing />
+                    <Education />
+                    <OpenAccount />
+                </div>
+            ) : (
+                <Dashboard />
+            )}
+
+{/* <Hero />
+                    <Awards />
+                    <Stats />
+                    <Pricing />
+                    <Education />
+                    <OpenAccount /> */}
+        
+           
         
 
         </div>

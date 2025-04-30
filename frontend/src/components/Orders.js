@@ -8,7 +8,10 @@ const Orders = () => {
   const navigate = useNavigate(); // Initialize navigation
 
   const fetchOrders = async () => {
-    const token = localStorage.getItem("token"); // Retrieve token
+    let token = localStorage.getItem("token"); // Retrieve token
+    if(!token) {
+      token = sessionStorage.getItem("token"); // Check session storage if not found in local storage
+    }
     if (!token) {
       setError("Unauthorized! Please log in.");
       setTimeout(() => navigate("/"), 3000); // Redirect after 3 seconds
@@ -32,6 +35,12 @@ const Orders = () => {
       }
     }
   };
+
+  // user_id: req.userId,  // ✅ This comes from the decoded token in middleware
+  // symbol: name,
+  // type: mode,
+  // price,
+  // quantity: qty
 
   useEffect(() => {
     fetchOrders(); // Fetch orders when component is mounted
@@ -60,10 +69,10 @@ const Orders = () => {
             ) : (
               allOrders.map((stock, index) => (
                 <tr key={index}>
-                  <td>{stock.name}</td>
-                  <td>{stock.qty}</td>
+                  <td>{stock.symbol}</td>
+                  <td>{stock.quantity}</td>
                   <td>{stock.price.toFixed(2)}</td>
-                  <td>{stock.mode}</td>
+                  <td>{stock.type}</td>
                 </tr>
               ))
             )}

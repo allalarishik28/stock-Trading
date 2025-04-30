@@ -6,132 +6,165 @@ const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const UserModel = require("./model/user"); 
-const { HoldingsModel } = require("./model/HoldingsModel");
-const { PositionsModel } = require("./model/PositionsModel");
+const UserModel = require("./model/user");
+const { StocksModel } = require("./model/StocksModel");
+const { TransactionsModel } = require("./model/TransactionsModel");
 const { OrdersModel } = require("./model/OrdersModel");
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 const uri = process.env.MONGO_URL;
 
-mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log("MongoDB Connected"))
+    .catch(err => console.error("MongoDB Connection Error:", err));
 
 app.use(cors());
 app.use(bodyParser.json());
 
-/* ------------- USER SIGNUP ------------- */
-app.post("/signup", async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-
-        // Check if user already exists
-        const existingUser = await UserModel.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: "Email already in use!" });
-        }
-
-        // Hash Password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new UserModel({ username, email, password: hashedPassword });
-        await newUser.save();
-
-        res.status(201).json({ message: "User registered successfully!" });
-    } catch (error) {
-        res.status(500).json({ message: "Error signing up", error });
-    }
-});
-
-/* ------------- USER LOGIN ------------- */
-app.post("/Login", async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        // Check if user exists
-        const user = await UserModel.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: "Invalid credentials!" });
-        }
-
-        // Compare password
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: "Invalid credentials!" });
-        }
-
-        // Generate JWT Token
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-        res.status(200).json({ message: "Login successful!", token, userId: user._id });
-    } catch (error) {
-        res.status(500).json({ message: "Error logging in", error });
-    }
-});
-
-/* Middleware to verify token */
+/* Middleware to Authenticate JWT Token */
 const authenticate = (req, res, next) => {
-    const token = req.headers.authorization;
+    // console.log("Request:", req); // Log the entire headers for debugging
+    console.log("Authorization Header:", req.headers.authorization);
+    const token = req.headers.authorization?.split(" ")[1]; 
+    console.log("Token:", token); // Log the token for debugging
     if (!token) {
         return res.status(401).json({ message: "Unauthorized access!" });
     }
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.userId = decoded.userId;
+        req.userId = decoded.userId; // Store user ID in the request for later use
         next();
     } catch (error) {
-        return res.status(403).json({ message: "Invalid token!" });
+        return res.status(403).json({ message: "Invalid or expired token!" });
     }
 };
+
+/* ------------- USER SIGNUP ------------- */
+app.post("/signup", async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        const existingUser = await UserModel.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: "Email already in use!" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new UserModel({
+            username,
+            email,
+            passwordHash: hashedPassword
+          });
+        await newUser.save();
+
+        res.status(201).json({ message: "User registered successfully!" });
+    } catch (error) {
+        res.status(500).json({ message: "Error signing up", error: error.message });
+    }
+});
+
+/* ------------- USER LOGIN ------------- */
+app.post("/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await UserModel.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: "Invalid email or password!" });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid email or password!" });
+        }
+
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        res.status(200).json({ message: "Login successful!", token, userId: user._id });
+    } catch (error) {
+        res.status(500).json({ message: "Error logging in", error: error.message });
+    }
+});
 
 /* ------------- FETCH USER HOLDINGS ------------- */
 app.get("/allHoldings", authenticate, async (req, res) => {
     try {
-        const userHoldings = await HoldingsModel.find({ userId: req.userId });
+        const userHoldings = await HoldingsModel.find({ user_Id: req.userId });
         res.status(200).json(userHoldings);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching holdings", error });
+        res.status(500).json({ message: "Error fetching holdings", error: error.message });
     }
 });
 
 /* ------------- FETCH USER POSITIONS ------------- */
 app.get("/allPositions", authenticate, async (req, res) => {
     try {
-        const userPositions = await PositionsModel.find({ userId: req.userId });
+        const userPositions = await PositionsModel.find({ user_id: req.userId });
         res.status(200).json(userPositions);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching positions", error });
+        res.status(500).json({ message: "Error fetching positions", error: error.message });
     }
 });
 
 /* ------------- FETCH USER ORDERS ------------- */
 app.get("/allOrders", authenticate, async (req, res) => {
     try {
-        const userOrders = await OrdersModel.find({ userId: req.userId });
+        const userOrders = await OrdersModel.find({ user_id: req.userId });
         res.status(200).json(userOrders);
     } catch (error) {
-        res.status(500).json({ message: "Error fetching orders", error });
+        res.status(500).json({ message: "Error fetching orders", error: error.message });
     }
 });
 
 /* ------------- PLACE NEW ORDER ------------- */
-app.post("/newOrders", authenticate, async (req, res) => {
-    try {
-        const { name, qty, price, mode } = req.body;
-        const newOrder = new OrdersModel({ userId: req.userId, name, qty, price, mode });
-        await newOrder.save();
+// app.post("/newOrders", authenticate, async (req, res) => {
+//     try {
+//         const { name, qty, price, mode } = req.body;
+//         const newOrder = new OrdersModel({ userId: req.userId, name, qty, price, mode });
+//         await newOrder.save();
 
-        res.status(201).json({ message: "Order placed successfully!" });
-    } catch (error) {
-        res.status(500).json({ message: "Error placing order", error });
-    }
+//         res.status(201).json({ message: "Order placed successfully!" });
+//     } catch (error) {
+//         res.status(500).json({ message: "Error placing order", error: error.message });
+//     }
+// });
+
+
+
+app.post("/newOrder", authenticate, async (req, res) => {
+    const { name, qty, price, mode } = req.body;
+
+    const newOrder = new OrdersModel({
+        user_id: req.userId,  // ✅ This comes from the decoded token in middleware
+        symbol: name,
+        type: mode,
+        price,
+        quantity: qty
+    });
+
+    await newOrder.save();
+    res.status(201).json({ message: "Order placed successfully!" });
+});
+
+
+
+
+
+  
+
+/* ------------- LOGOUT USER ------------- */
+app.post("/logout", (req, res) => {
+    // Perform logout logic here
+    // No action needed server-side since the token is deleted client-side
+    res.status(200).json({ message: "Logged out successfully!" });
 });
 
 /* ------------- SERVER START ------------- */
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-// modify this ccode
+
+
+
 
 
 
